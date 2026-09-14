@@ -91,6 +91,9 @@ struct fake_operation {
 	int cancelled;
 	uint8_t keystore_selectors[32];
 	unsigned int keystore_calls;
+	uint8_t rejected_keystore_selector;
+	int8_t rejected_keystore_outer;
+	int32_t rejected_keystore_inner;
 	unsigned int malformed_lock_state_call;
 	uint8_t created_keybag_secret[SEP_KEYSTORE_SECRET_SIZE];
 	int device_keybag_present;
@@ -495,6 +498,21 @@ static enum sep_urb_status fake_exchange(void *context,
 		if (fake->keystore_calls < sizeof(fake->keystore_selectors))
 			fake->keystore_selectors[fake->keystore_calls] = selector;
 		++fake->keystore_calls;
+		if (selector == fake->rejected_keystore_selector) {
+			/* Synthetic native rejection, with no accepted handle payload. */
+			message[1] = (uint8_t)(selector | UINT8_C(0x80));
+			message[2] = header[10];
+			message[3] = (uint8_t)fake->rejected_keystore_outer;
+			ipc_length = SEP_KEYSTORE_IPC_WIRE_HEADER_SIZE + sizeof(uint32_t);
+			store_u32_le(ipc + SEP_KEYSTORE_IPC_WIRE_HEADER_SIZE,
+				     (uint32_t)fake->rejected_keystore_inner);
+			EXPECT(sep_keystore_seal(ipc, ipc_length, 9001) == SEP_KEYSTORE_OK);
+			store_u16_le(message + 6, (uint16_t)ipc_length);
+			build_response(input, endpoint, message, sizeof(message), ipc,
+				       ipc_length, 0);
+			finish_transfer(fake, timeout_ms);
+			return SEP_URB_OK;
+		}
 		if (selector == SEP_KEYSTORE_SELECTOR_SET_ENVIRONMENT) {
 			const size_t environment_offset = 0x64U;
 
@@ -1897,6 +1915,59 @@ static void observe_cleanup(int result)
 	observed_cleanup_calls++;
 }
 
+static void test_relay_native_rejections_preserve_state_and_cleanup_evidence(void)
+{
+	const uint8_t rejected[] = {
+		SEP_KEYSTORE_SELECTOR_LOAD, SEP_KEYSTORE_SELECTOR_MAKE_SYSTEM,
+	};
+	sep_operation_cleanup_observer previous =
+		sep_operation_set_cleanup_observer(observe_cleanup);
+
+	for (size_t stage = 0; stage < sizeof(rejected); ++stage) {
+		for (int outer = 0; outer <= 1; ++outer) {
+			for (int cleanup_failure = 0; cleanup_failure <= 2; ++cleanup_failure) {
+				struct fake_operation fake = make_fake();
+				struct fake_keybag_store store = {
+					.load_result = SEP_KEYBAG_STORE_EXISTING,
+				};
+				struct relay_callback_state ready = { 0 };
+				struct sep_keybag_material original = {
+					.blob = { 1, 3, 5 }, .blob_length = 3,
+				};
+
+				memset(original.secret, 0x5a, sizeof(original.secret));
+				store.loaded = original;
+				fake.rejected_keystore_selector = rejected[stage];
+				fake.rejected_keystore_outer = outer ? -1 : 0;
+				fake.rejected_keystore_inner = outer ? 0 : -7;
+				fake.destroy_fails = cleanup_failure == 1;
+				fake.close_fails_for = cleanup_failure == 2 ? 80 : -1;
+				observed_cleanup_calls = 0;
+
+				EXPECT(run_relay_fake(&fake, &store, &ready) ==
+				       SEP_OPERATION_REMOTE_ERROR);
+				/* Stop at the first rejection; never publish readiness or retry. */
+				EXPECT(fake.keystore_calls == (stage == 0 ? 4U : 5U));
+				EXPECT(fake.keystore_selectors[fake.keystore_calls - 1] ==
+				       rejected[stage]);
+				EXPECT(ready.calls == 0 && fake.receive_calls == 0);
+				EXPECT(store.load_calls == 1 && store.persist_calls == 0);
+				EXPECT(memcmp(&store.loaded, &original, sizeof(original)) == 0);
+				EXPECT(fake.authorization_event_count == 0 &&
+				       fake.delete_exchange_calls == 0);
+				EXPECT(fake.destroy_calls == 1 && fake.close_calls == 2);
+				EXPECT(fake.closed[0] == 80 && fake.closed[1] == 70);
+				EXPECT(observed_cleanup_calls == 1);
+				EXPECT(observed_cleanup_result == (cleanup_failure ?
+				       SEP_OPERATION_ERROR_TEARDOWN : SEP_OPERATION_OK));
+				sep_keystore_clear(&original, sizeof(original));
+				sep_keystore_clear(&store, sizeof(store));
+			}
+		}
+	}
+	EXPECT(sep_operation_set_cleanup_observer(previous) == observe_cleanup);
+}
+
 static void test_cleanup_observation_preserves_primary_result(void)
 {
 	const enum sep_operation_result results[] = {
@@ -2108,6 +2179,7 @@ int main(void)
 	test_cancellation_is_owned_before_and_after_callback();
 	test_session_transfer_cannot_extend_the_deadline();
 	test_cleanup_observation_preserves_primary_result();
+	test_relay_native_rejections_preserve_state_and_cleanup_evidence();
 	test_primary_errors_survive_cleanup_failure();
 	test_acm_context_teardown_obeys_result_deadline_and_cancellation();
 	test_consumer_lease_gets_a_fresh_bounded_cleanup_deadline();
