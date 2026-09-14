@@ -337,6 +337,7 @@ struct RendererSession {
     hardware_capabilities: StockCapabilities,
     desktop_state: DesktopState,
     pending_desktop_state: Option<DesktopState>,
+    display_off: bool,
     levels: StockLevels,
     touch_id: TouchIdOverlay,
     overlay_state: Option<OverlayState>,
@@ -387,6 +388,7 @@ impl RendererSession {
             hardware_capabilities: capabilities,
             desktop_state: DesktopState::default(),
             pending_desktop_state: None,
+            display_off: false,
             levels: StockLevels::default(),
             touch_id,
             overlay_state: None,
@@ -468,7 +470,7 @@ impl RendererSession {
                 if envelope.request_id != 0 {
                     return Err(BuiltinRendererError::Protocol);
                 }
-                let outcome = self.input.ingest_at(&frame, self.overlay_state, self.now)?;
+                let outcome = self.observe_input(frame)?;
                 self.dirty |= outcome.redraw;
                 for action in outcome.actions {
                     self.dispatch(action, connection, provider)?;
@@ -557,6 +559,24 @@ impl RendererSession {
                 Err(BuiltinRendererError::ServiceRejected)
             }
         }
+    }
+
+    /// Feeds one hardware input frame through the interpreter.
+    ///
+    /// While the desktop display is off the panel is dark, so contacts are
+    /// dropped before interpretation: nothing is pressed, repeated, tapped, or
+    /// used to cancel Touch ID. Fn state is still tracked so the row is right
+    /// when the display returns. Suppressed touches must end before a fresh
+    /// gesture can begin on the restored display.
+    fn observe_input(
+        &mut self,
+        mut frame: WireInputFrame,
+    ) -> Result<InputOutcome, BuiltinRendererError> {
+        if self.display_off || self.input.wait_for_touch_release {
+            self.input.wait_for_touch_release = frame.contacts.iter().any(|contact| contact.tip);
+            frame.contacts.clear();
+        }
+        self.input.ingest_at(&frame, self.overlay_state, self.now)
     }
 
     fn send_keys(
@@ -721,6 +741,10 @@ impl RendererSession {
     }
 
     fn render(&mut self) -> Result<(), BuiltinRendererError> {
+        if self.display_off {
+            self.frame.as_mut_slice().fill(0);
+            return Ok(());
+        }
         let mut frame = Xrgb8888Frame::new(
             self.dimensions.width(),
             self.dimensions.height(),
@@ -808,7 +832,10 @@ impl RendererSession {
         self.now = now;
         self.advance_overlay_fade(now);
         self.advance_enrollment_progress(now);
-        if let Some(action) = self.input.take_repeat(now) {
+        if !self.display_off
+            && !self.input.wait_for_touch_release
+            && let Some(action) = self.input.take_repeat(now)
+        {
             self.dispatch(action, connection, provider)?;
         }
         self.submit_if_ready(connection)
@@ -862,6 +889,15 @@ impl RendererSession {
     }
 
     fn set_desktop_state(&mut self, state: DesktopState) -> Result<(), BuiltinRendererError> {
+        // Display power follows the desktop immediately, even under an active
+        // touch: a dark panel must not keep showing controls.
+        if self.display_off != state.display_off {
+            self.display_off = state.display_off;
+            if self.display_off {
+                self.input.cancel_touches();
+            }
+            self.dirty = true;
+        }
         if self.desktop_state == state && self.pending_desktop_state.is_none() {
             if self.levels.volume != state.volume || self.levels.muted != state.muted {
                 self.levels.volume = state.volume;
@@ -978,6 +1014,7 @@ struct InputInterpreter {
     touch_id: TouchIdOverlay,
     gestures: GestureEngine,
     fn_pressed: bool,
+    wait_for_touch_release: bool,
     pressed: Option<StockAction>,
     repeat: Option<RepeatState>,
     suppress_tap: Option<StockAction>,
@@ -1001,6 +1038,7 @@ impl InputInterpreter {
             touch_id,
             gestures: GestureEngine::new(settings),
             fn_pressed: false,
+            wait_for_touch_release: false,
             pressed: None,
             repeat: None,
             suppress_tap: None,
@@ -1016,7 +1054,7 @@ impl InputInterpreter {
     }
 
     fn is_idle(&self) -> bool {
-        self.gestures.is_idle()
+        !self.wait_for_touch_release && self.gestures.is_idle()
     }
 
     fn set_stock(&mut self, stock: StockBar) {
@@ -1144,6 +1182,13 @@ impl InputInterpreter {
         self.repeat = None;
         self.suppress_tap = None;
     }
+
+    fn cancel_touches(&mut self) {
+        self.wait_for_touch_release |= !self.gestures.is_idle();
+        self.gestures.cancel_all();
+        self.pressed = None;
+        self.cancel_repeat();
+    }
 }
 
 const fn repeatable(action: StockAction) -> bool {
@@ -1193,6 +1238,8 @@ const fn action_key(action: StockAction) -> Option<KeyCode> {
 mod tests {
     use super::*;
     use std::os::unix::net::UnixStream;
+
+    mod display_power;
 
     fn dimensions() -> DisplayDimensions {
         DisplayDimensions::new(130, 20).expect("valid synthetic dimensions")
@@ -1363,6 +1410,7 @@ mod tests {
             capabilities: DesktopCapabilities::AUDIO | DesktopCapabilities::MEDIA,
             volume: Some(61),
             muted: true,
+            display_off: false,
         };
         session
             .set_desktop_state(state)
@@ -1405,6 +1453,7 @@ mod tests {
             capabilities: DesktopCapabilities::AUDIO,
             volume: Some(42),
             muted: false,
+            display_off: false,
         };
         session
             .set_desktop_state(state)
@@ -1434,6 +1483,7 @@ mod tests {
             capabilities: DesktopCapabilities::AUDIO,
             volume: Some(50),
             muted: false,
+            display_off: false,
         };
         session
             .set_desktop_state(state)

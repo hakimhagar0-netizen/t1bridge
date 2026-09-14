@@ -205,6 +205,12 @@ impl GestureEngine {
         self.active.is_empty()
     }
 
+    /// Discards active contacts without emitting releases or taps.
+    /// The last accepted timestamp still bounds subsequent input.
+    pub(crate) fn cancel_all(&mut self) {
+        self.active.clear();
+    }
+
     /// Applies one complete frame of currently active contacts.
     ///
     /// Missing contact identifiers are released before present contacts are
@@ -444,6 +450,34 @@ mod tests {
             vec![Gesture::Release(current), Gesture::Tap(current)]
         );
         assert!(engine.is_empty());
+    }
+
+    #[test]
+    fn cancellation_discards_taps_and_preserves_timestamp_validation() {
+        let mut engine = GestureEngine::new(settings(10.0, 450, 2));
+        let first = contact(1, 5.0, 5.0);
+        let second = contact(2, 10.0, 5.0);
+        engine
+            .ingest_frame(Duration::from_millis(10), &[first, second])
+            .unwrap();
+        engine.cancel_all();
+        assert!(engine.is_idle());
+        assert_eq!(
+            engine.ingest_frame(Duration::from_millis(9), &[]),
+            Err(GestureError::TimestampRegressed),
+        );
+        assert!(
+            engine
+                .ingest_frame(Duration::from_millis(10), &[])
+                .unwrap()
+                .is_empty()
+        );
+        assert_eq!(
+            engine
+                .ingest_frame(Duration::from_millis(11), &[first])
+                .unwrap(),
+            [Gesture::Press(first)],
+        );
     }
 
     #[test]
