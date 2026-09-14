@@ -406,6 +406,9 @@ renderer presents a dark frame, drops contacts so nothing is pressed or typed,
 and keeps Touch ID presentation for when the display returns. Only the desktop
 turns its display back on; the Touch Bar does not wake it. A provider that
 fails or disappears withdraws the state and the panel returns to its controls.
+Blanking cancels active gestures and repeats. Contacts held across blanking
+stay inactive until all fingers lift, including when provider failure restores
+the controls.
 
 Provider stdout is limited to 128 bytes and each process receives a 500 ms
 monotonic deadline. A status record is refreshed at most once per second.
