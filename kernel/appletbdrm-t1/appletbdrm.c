@@ -853,29 +853,6 @@ static void appletbdrm_t1_park(struct appletbdrm_device *adev)
 	appletbdrm_clear_display(adev);
 }
 
-static int appletbdrm_t1_rearm(struct appletbdrm_device *adev)
-{
-	struct usb_device *udev = adev_to_udev(adev);
-	int ret;
-
-	usb_clear_halt(udev, usb_sndbulkpipe(udev, adev->out_ep));
-	usb_clear_halt(udev, usb_rcvbulkpipe(udev, adev->in_ep));
-
-	ret = appletbdrm_get_information(adev);
-	if (ret)
-		return ret;
-
-	ret = appletbdrm_signal_readiness(adev);
-	if (ret)
-		return ret;
-
-	ret = appletbdrm_clear_display(adev);
-	if (ret)
-		return ret;
-
-	return appletbdrm_clear_display(adev);
-}
-
 static int appletbdrm_suspend(struct usb_interface *intf, pm_message_t message)
 {
 	struct appletbdrm_device *adev = usb_get_intfdata(intf);
@@ -888,19 +865,7 @@ static int appletbdrm_suspend(struct usb_interface *intf, pm_message_t message)
 	return ret;
 }
 
-static int appletbdrm_resume(struct usb_interface *intf)
-{
-	struct appletbdrm_device *adev = usb_get_intfdata(intf);
-	int ret;
-
-	if (appletbdrm_is_t1(adev)) {
-		ret = appletbdrm_t1_rearm(adev);
-		if (ret)
-			drm_err(&adev->drm, "Failed to rearm T1 display (%d)\n", ret);
-	}
-
-	return drm_mode_config_helper_resume(&adev->drm);
-}
+#include "appletbdrm_resume.h"
 
 static const struct usb_device_id appletbdrm_usb_id_table[] = {
 	{ USB_DEVICE_INTERFACE_CLASS(0x05ac, 0x8302, USB_CLASS_AUDIO_VIDEO) },

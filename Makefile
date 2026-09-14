@@ -1,13 +1,13 @@
 .PHONY: quality format lint test dependency-policy platform-c \
 	platform-c-sanitize touchbar-hw-c touchbar-hw-c-sanitize sep-probe \
 	sep-probe-sanitize pam kernel packaging uvc-upstream uvc-parser \
-	uvc-parser-sanitize
+	uvc-parser-sanitize appletbdrm-resume
 
 KDIR ?= /lib/modules/$(shell uname -r)/build
 
 quality: format lint test dependency-policy platform-c platform-c-sanitize \
 	touchbar-hw-c touchbar-hw-c-sanitize sep-probe sep-probe-sanitize \
-	pam uvc-parser uvc-parser-sanitize kernel packaging
+	pam uvc-parser uvc-parser-sanitize appletbdrm-resume kernel packaging
 
 format:
 	cargo fmt --all --check
@@ -106,6 +106,9 @@ uvc-parser-sanitize:
 
 kernel: uvc-upstream
 	$(MAKE) -C kernel/dkms KDIR=$(KDIR)
+
+appletbdrm-resume:
+	$(MAKE) -C kernel/appletbdrm-t1 test sanitize
 
 packaging:
 	$(MAKE) -C packaging/arch/t1bridge verify
