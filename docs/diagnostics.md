@@ -7,6 +7,9 @@ Diagnostics are **off by default**. Enable them to investigate import, Touch ID,
 boot-service, or Touch Bar failures without removing redaction. Logging observes
 existing work; it adds no sensor commands, retries, unlock attempts, or resets.
 
+For the sustained keybag failure tracked in #14, see the
+[current investigation and next evidence](relay-recovery.md).
+
 ## Enable
 
 For one CLI command, put `--diagnostics` before the command:

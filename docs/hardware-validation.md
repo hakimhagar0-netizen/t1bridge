@@ -393,6 +393,31 @@ Expected outcome:
 - the enrolled finger still matches; and
 - the Touch Bar accepts input with no stuck synthesized keys.
 
+Record the model, kernel, complete package cohort, sleep mode, cycle count,
+sleep duration, and time until each function is usable. Check camera capture,
+fresh ambient-light reports, and both Touch Bar rendering and touch input in
+addition to standard fingerprint verification. Repeat idle and active-device
+cases only during an agreed attended test, with password recovery available.
+Record host suspend failures separately; a working LCD or display blanking
+alone does not prove system suspend or T1 recovery.
+
+For the display recovery follow-up to #18, distinguish these paths:
+
+- A successful driver rearm restores the saved framebuffer on the existing DRM
+  device. The hardware service need not restart or log another `display-open`.
+- A failed endpoint/rearm or DRM-mode restore marks only the display interface
+  for deferred USB-core reprobe. Confirm the DRM remove/add event, hardware
+  service reopening, renderer reconnection, and a full first frame. Check that
+  NCM/xART, camera and Touch ID remain available without a composite reset.
+- If reprobe itself fails, record the first error and unavailable function;
+  do not substitute manual resets or declare recovery successful.
+
+Synthetic fault tests cover the callback's fallback request. Actual USB-core,
+udev/systemd ordering and repeated attended cycles still require evidence.
+Do not inject hardware failures merely to exercise this fallback. The reported
+MacBookPro14,2 dark-bar failure occurred on 0.1.7; retest a build containing the
+fix before attributing a successful recovery to it.
+
 ## Guarded T1 USB cycle
 
 Run `sudo t1bridge validate usb-cycle`. The command must discover the T1 from
