@@ -88,7 +88,7 @@ kernel combination has been tested. Missing T1 functionality remains in scope.
 | T1 sleep/wake (system suspend/resume) | 🔴 Not working on the tested machine | Not supported currently. T1 recovery across system sleep/wake remains in scope; the cause of the host suspend failure is not established here. Screen blanking and waking the display are not system suspend/resume. |
 | T1 runtime power saving | 🟡 Limited | Runtime autosuspend is disabled for T1 stability; power-saving suspend/recovery is not a supported feature yet. |
 | Ambient-light sensor | 🟡 Available on the tested machine | Stock HID/IIO and required sensor proxy expose light readings. Optional `t1bridge-omarchy` provides automatic panel brightness; broader validation remains in [#17](https://github.com/standardagents/t1bridge/issues/17). See [sensor support](docs/ambient-light.md). |
-| General Secure Enclave key services | 🔴 Not implemented | No general-purpose signing/key-management API; Touch ID support does not imply these services exist. |
+| General Secure Enclave key services | 🔴 Not implemented | [Feasibility and prior art](docs/secure-enclave-key-services.md): macOS precedent exists; T1/Linux key-service contracts remain unresolved. |
 
 Wi-Fi, Bluetooth, speakers, the internal keyboard/trackpad, GPU switching and
 host-wide power management are separate from T1Bridge. **Recovery of the T1's
